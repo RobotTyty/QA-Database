@@ -1,0 +1,11 @@
+ [
+     {
+         "question": "What is your name?",
+         "answer": "I am GitHub Copilot."
+     },
+     {
+         "question": "How do I use Copilot?",
+         "answer": "You can use Copilot to assist with code suggestions in GitHub."
+     }
+ ]
+ ```
