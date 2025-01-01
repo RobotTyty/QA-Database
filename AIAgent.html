@@ -640,74 +640,108 @@
             if (notificationTime > now) {
                 const timeUntilNotification = notificationTime - now;
                 
-                // 檢查是否支持通知
-                if (!('Notification' in window)) {
-                    alert('This browser does not support notifications');
-                    return;
-                }
-
-                // 請求通知權限
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        // 設置定時器
-                        setTimeout(() => {
-                            try {
-                                // 在移動設備上使用 ServiceWorker 發送通知
-                                if ('serviceWorker' in navigator) {
-                                    navigator.serviceWorker.register('service-worker.js')
-                                        .then(registration => {
-                                            registration.showNotification('Task Reminder', {
-                                                body: task.text,
-                                                vibrate: [200, 100, 200],
-                                                tag: 'task-reminder',
-                                                renotify: true,
-                                                actions: [
-                                                    {
-                                                        action: 'view',
-                                                        title: 'View Task'
-                                                    },
-                                                    {
-                                                        action: 'close',
-                                                        title: 'Close'
-                                                    }
-                                                ],
-                                                data: {
-                                                    taskId: task.id,
-                                                    datetime: task.datetime
-                                                }
-                                            });
-                                        })
-                                        .catch(error => {
-                                            // 如果 ServiceWorker 失敗，回退到普通通知
-                                            fallbackNotification(task);
-                                        });
-                                } else {
-                                    // 如果不支持 ServiceWorker，使用普通通知
-                                    fallbackNotification(task);
-                                }
-
-                                // 播放提示音
-                                playNotificationSound();
-                                
-                                // 震動
-                                if ('vibrate' in navigator) {
-                                    navigator.vibrate([200, 100, 200]);
-                                }
-                            } catch (error) {
-                                console.error('Notification error:', error);
-                                alert(`Reminder: ${task.text}`);
-                            }
-                        }, timeUntilNotification);
+                // 設置定時器
+                setTimeout(() => {
+                    // 顯示自定義提醒彈窗
+                    showCustomNotification(task.text);
+                    
+                    // 播放提示音
+                    playNotificationSound();
+                    
+                    // 如果支持震動則震動
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate([200, 100, 200]);
                     }
-                });
+                }, timeUntilNotification);
             }
         }
 
-        // 修改回退通知函數
-        function fallbackNotification(task) {
-            new Notification('Task Reminder', {
-                body: task.text
+        // 添加自定義提醒彈窗
+        function showCustomNotification(text) {
+            // 創建提醒元素
+            const notification = document.createElement('div');
+            notification.className = 'custom-notification';
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <div class="notification-title">Task Reminder</div>
+                    <div class="notification-body">${text}</div>
+                    <button class="notification-close">Close</button>
+                </div>
+            `;
+
+            // 添加樣式
+            const style = document.createElement('style');
+            style.textContent = `
+                .custom-notification {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff9ecd;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease-out;
+                    max-width: 300px;
+                }
+
+                .notification-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .notification-title {
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+
+                .notification-body {
+                    font-size: 14px;
+                }
+
+                .notification-close {
+                    background: white;
+                    color: #ff9ecd;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    margin-top: 8px;
+                    align-self: flex-end;
+                }
+
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+
+            document.head.appendChild(style);
+            document.body.appendChild(notification);
+
+            // 添加關閉按鈕事件
+            const closeButton = notification.querySelector('.notification-close');
+            closeButton.addEventListener('click', () => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
             });
+
+            // 自動關閉
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 5000);
         }
 
         // 添加提示音函數
@@ -779,24 +813,11 @@
 
         // 修改測試通知函數
         function testNotification() {
-            if (!('Notification' in window)) {
-                alert('Notifications not supported');
-                return;
+            showCustomNotification('This is a test notification');
+            playNotificationSound();
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200]);
             }
-
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    try {
-                        new Notification('Test Notification', {
-                            body: 'This is a test notification'
-                        });
-                    } catch (e) {
-                        alert('Notification failed: ' + e.message);
-                    }
-                } else {
-                    alert('Notification permission: ' + permission);
-                }
-            });
         }
     </script>
 </body>
