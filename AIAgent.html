@@ -687,14 +687,11 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用 webcal 協議
-                    const calendarUrl = `webcal://p66-caldav.icloud.com/published/2/MTAwMDg4NTMyMTEwMDA4OJGi8JmB0L-gVoYpYJkz5vXQYf-EQkghI_GvyfHFU1oTXXwgPYWYNCVZ?text=${encodeURIComponent(task.text)}&dates=${formatDateForCalendar(taskDate)}/${formatDateForCalendar(endDate)}&details=${encodeURIComponent(task.text)}`;
+                    // 使用 Google Calendar 格式
+                    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(task.text)}&dates=${formatDateForCalendar(taskDate)}/${formatDateForCalendar(endDate)}&details=${encodeURIComponent(task.text)}`;
                     
-                    // 直接打開日曆
-                    window.location.href = calendarUrl;
-                    
-                    // 或者使用新窗口打開
-                    // window.open(calendarUrl, '_blank');
+                    // 使用新窗口打開
+                    window.open(calendarUrl, '_blank');
                 }
                 
                 // 保存到本地存儲以備用
@@ -706,7 +703,7 @@
 
         // 修改格式化日期函數
         function formatDateForCalendar(date) {
-            return date.toISOString().replace(/[-:.]/g, '').split('.')[0];
+            return date.toISOString().replace(/[-:.]/g, '').split('.')[0] + 'Z';
         }
 
         // 添加樣式到 head
