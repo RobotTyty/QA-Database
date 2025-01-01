@@ -313,7 +313,7 @@
 </head>
 <body>
     <div style="position: fixed; top: 10px; left: 10px; background: #ff9ecd; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000;">
-        v1.0.1
+        v1.0.2
     </div>
     <div class="main-container">
         <div class="chat-container">
@@ -693,11 +693,17 @@
                     // 使用 iOS 日曆格式
                     const calendarUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(`BEGIN:VCALENDAR
 VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
 BEGIN:VEVENT
+UID:${task.id}@christysworld.com
+DTSTAMP:${formatDateForCalendar(new Date())}
 DTSTART:${formatDateForCalendar(taskDate)}
 DTEND:${formatDateForCalendar(endDate)}
 SUMMARY:${task.text}
 DESCRIPTION:${task.text}
+STATUS:CONFIRMED
+SEQUENCE:0
 BEGIN:VALARM
 TRIGGER:PT0M
 ACTION:DISPLAY
@@ -708,39 +714,27 @@ END:VCALENDAR`)}`;
                     
                     // 提示用戶添加到日曆
                     const addToCalendarPrompt = document.createElement('div');
+                    addToCalendarPrompt.id = 'calendar-prompt';
                     addToCalendarPrompt.className = 'calendar-prompt';
                     addToCalendarPrompt.innerHTML = `
                         <div class="prompt-content">
                             <h3>Add to Calendar?</h3>
                             <p>For reliable reminders on iOS, add this task to your calendar.</p>
                             <div class="prompt-buttons">
-                                <a href="${calendarUrl}" class="add-button" download="${task.text}.ics">Add to Calendar</a>
-                                <button class="cancel-button">Cancel</button>
+                                <a href="${calendarUrl}" class="add-button" download="${task.text}.ics" onclick="closeCalendarPrompt()">Add to Calendar</a>
+                                <button class="cancel-button" onclick="closeCalendarPrompt()">Cancel</button>
                             </div>
                         </div>
                     `;
                     
-                    // 添加樣式
-                    addToCalendarPrompt.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background: rgba(0,0,0,0.5);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        z-index: 1000;
-                    `;
+                    // 移除任何現有的提示框
+                    const existingPrompt = document.getElementById('calendar-prompt');
+                    if (existingPrompt) {
+                        existingPrompt.remove();
+                    }
                     
+                    // 添加新的提示框
                     document.body.appendChild(addToCalendarPrompt);
-                    
-                    // 處理按鈕點擊
-                    const cancelButton = addToCalendarPrompt.querySelector('.cancel-button');
-                    cancelButton.addEventListener('click', () => {
-                        addToCalendarPrompt.remove();
-                    });
                 }
                 
                 // 保存到本地存儲以備用
@@ -749,6 +743,17 @@ END:VCALENDAR`)}`;
                 localStorage.setItem('scheduledTasks', JSON.stringify(scheduledTasks));
             }
         }
+
+        // 添加關閉提示框的函數
+        window.closeCalendarPrompt = function() {
+            const prompt = document.getElementById('calendar-prompt');
+            if (prompt) {
+                prompt.style.opacity = '0';
+                prompt.style.transform = 'scale(0.9)';
+                prompt.style.transition = 'all 0.3s ease-out';
+                setTimeout(() => prompt.remove(), 300);
+            }
+        };
 
         // 修改格式化日期函數
         function formatDateForCalendar(date) {
