@@ -312,6 +312,9 @@
     </style>
 </head>
 <body>
+    <div style="position: fixed; top: 10px; left: 10px; background: #ff9ecd; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000;">
+        v1.0.0
+    </div>
     <div class="main-container">
         <div class="chat-container">
             <div class="chat-header">
@@ -687,8 +690,8 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用 iCalendar 格式
-                    const icsContent = `BEGIN:VCALENDAR
+                    // 使用 data URI 格式直接打開日曆
+                    const calendarUrl = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Christy's World//Task Reminder//EN
 CALSCALE:GREGORIAN
@@ -707,20 +710,8 @@ END:VALARM
 END:VEVENT
 END:VCALENDAR`;
 
-                    // 創建 Blob 和 URL
-                    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // 創建下載鏈接
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `task_${task.id}.ics`;
-                    document.body.appendChild(link);
-                    link.click();
-                    
-                    // 清理
-                    document.body.removeChild(link);
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    // 直接打開日曆
+                    window.location.href = calendarUrl;
                 }
                 
                 // 保存到本地存儲以備用
