@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Agent Interface</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff9ecd">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -634,26 +637,63 @@
         };
 
         function scheduleLocalNotification(task) {
-            const notificationTime = new Date(task.datetime).getTime();
-            const now = new Date().getTime();
-            
-            if (notificationTime > now) {
-                const timeUntilNotification = notificationTime - now;
-                
-                // 設置定時器
-                setTimeout(() => {
-                    // 顯示自定義提醒彈窗
-                    showCustomNotification(task.text);
-                    
-                    // 播放提示音
-                    playNotificationSound();
-                    
-                    // 如果支持震動則震動
-                    if ('vibrate' in navigator) {
-                        navigator.vibrate([200, 100, 200]);
-                    }
-                }, timeUntilNotification);
+            // 保存到 IndexedDB
+            saveTaskToIndexedDB(task);
+
+            // 註冊後台同步
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.sync.register('check-tasks');
+                });
             }
+
+            // 請求通知權限
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        // 設置定時器
+                        const notificationTime = new Date(task.datetime).getTime();
+                        const now = new Date().getTime();
+                        
+                        if (notificationTime > now) {
+                            navigator.serviceWorker.ready.then(registration => {
+                                registration.showNotification('Task Reminder', {
+                                    body: task.text,
+                                    icon: 'icon-192.png',
+                                    badge: 'icon-192.png',
+                                    vibrate: [200, 100, 200],
+                                    tag: 'task-reminder',
+                                    renotify: true,
+                                    data: task
+                                });
+                            });
+                        }
+                    }
+                });
+            }
+        }
+
+        // 保存任務到 IndexedDB
+        function saveTaskToIndexedDB(task) {
+            const request = indexedDB.open('TasksDB', 1);
+
+            request.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('tasks')) {
+                    db.createObjectStore('tasks', { keyPath: 'id' });
+                }
+            };
+
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['tasks'], 'readwrite');
+                const store = transaction.objectStore('tasks');
+                store.put(task);
+            };
         }
 
         // 添加自定義提醒彈窗
