@@ -680,15 +680,28 @@
             const now = new Date().getTime();
             
             if (notificationTime > now) {
-                // 檢查是否是 iOS
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 
                 if (isIOS) {
-                    // 創建日曆事件 URL
+                    // 創建 iOS 日曆事件 URL
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    const calendarUrl = `webcal://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(task.text)}&dates=${formatDateForCalendar(taskDate)}/${formatDateForCalendar(endDate)}&details=${encodeURIComponent(task.text)}&sf=true&output=xml`;
+                    // 使用 iOS 日曆格式
+                    const calendarUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(`BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatDateForCalendar(taskDate)}
+DTEND:${formatDateForCalendar(endDate)}
+SUMMARY:${task.text}
+DESCRIPTION:${task.text}
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder
+END:VALARM
+END:VEVENT
+END:VCALENDAR`)}`;
                     
                     // 提示用戶添加到日曆
                     const addToCalendarPrompt = document.createElement('div');
@@ -698,7 +711,7 @@
                             <h3>Add to Calendar?</h3>
                             <p>For reliable reminders on iOS, add this task to your calendar.</p>
                             <div class="prompt-buttons">
-                                <a href="${calendarUrl}" class="add-button">Add to Calendar</a>
+                                <a href="${calendarUrl}" class="add-button" download="${task.text}.ics">Add to Calendar</a>
                                 <button class="cancel-button">Cancel</button>
                             </div>
                         </div>
@@ -734,9 +747,9 @@
             }
         }
 
-        // 輔助函數：格式化日期為日曆 URL 格式
+        // 修改格式化日期函數
         function formatDateForCalendar(date) {
-            return date.toISOString().replace(/-|:|\.\d+/g, '');
+            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         }
 
         // 添加樣式到 head
