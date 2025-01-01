@@ -340,7 +340,7 @@
                 <div class="add-task">
                     <input type="text" id="new-task" placeholder="Add new task...">
                     <input type="datetime-local" id="task-datetime">
-                    <button onclick="addTask()">Add</button>
+                    <button id="add-task-btn">Add</button>
                 </div>
             </div>
         </div>
@@ -476,17 +476,73 @@
         monthSelect.value = currentDate.getMonth();
         generateCalendar();
 
-        // 任務管理功能
-        let tasks = [
-            { 
-                id: 1, 
-                text: "Complete project report", 
-                completed: false,
-                datetime: "2024-03-20T14:00"
-            }
-        ];
+        // 首先確保 tasks 數組被正確初始化
+        let tasks = [];
 
+        // 在頁面加載時初始化任務
+        document.addEventListener('DOMContentLoaded', () => {
+            // 從本地存儲加載任務
+            const savedTasks = localStorage.getItem('tasks');
+            if (savedTasks) {
+                tasks = JSON.parse(savedTasks);
+                renderTasks();
+            }
+
+            // 獲取添加任務按鈕並添加事件監聽器
+            const addTaskBtn = document.getElementById('add-task-btn');
+            addTaskBtn.addEventListener('click', () => {
+                const input = document.getElementById('new-task');
+                const datetimeInput = document.getElementById('task-datetime');
+                const text = input.value.trim();
+                const datetime = datetimeInput.value;
+                
+                console.log('Adding task:', text, datetime); // 調試信息
+                
+                if (!text) {
+                    alert('Please enter a task description');
+                    return;
+                }
+                
+                if (!datetime) {
+                    alert('Please select date and time');
+                    return;
+                }
+
+                const newTask = {
+                    id: Date.now(),
+                    text: text,
+                    completed: false,
+                    datetime: datetime
+                };
+                
+                // 添加到任務列表
+                tasks.push(newTask);
+                
+                // 保存到本地存儲
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                
+                // 設置提醒
+                scheduleLocalNotification(newTask);
+                
+                // 清空輸入
+                input.value = '';
+                datetimeInput.value = '';
+                
+                // 更新顯示
+                renderTasks();
+                
+                console.log('Task added successfully:', newTask); // 調試信息
+            });
+
+            // 請求通知權限
+            if ('Notification' in window) {
+                Notification.requestPermission();
+            }
+        });
+
+        // 修改 renderTasks 函數以添加調試信息
         function renderTasks() {
+            console.log('Rendering tasks:', tasks); // 調試信息
             const taskList = document.getElementById('task-list');
             taskList.innerHTML = '';
             
@@ -517,32 +573,21 @@
             updateCalendar();
         }
 
-        function addTask() {
-            const input = document.getElementById('new-task');
-            const datetimeInput = document.getElementById('task-datetime');
-            const text = input.value.trim();
-            const datetime = datetimeInput.value;
-            
-            if (text && datetime) {
-                const newTask = {
-                    id: Date.now(),
-                    text: text,
-                    completed: false,
-                    datetime: datetime
-                };
-                
-                // 保存到本地存儲
-                tasks.push(newTask);
+        // 確保這些函數在全局範圍內可用
+        window.toggleTask = function(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
                 localStorage.setItem('tasks', JSON.stringify(tasks));
-                
-                // 設置提醒
-                scheduleLocalNotification(newTask);
-                
-                input.value = '';
-                datetimeInput.value = '';
                 renderTasks();
             }
-        }
+        };
+
+        window.deleteTask = function(taskId) {
+            tasks = tasks.filter(t => t.id !== taskId);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+        };
 
         function scheduleLocalNotification(task) {
             const notificationTime = new Date(task.datetime).getTime();
@@ -575,19 +620,6 @@
                     }
                 }, timeUntilNotification);
             }
-        }
-
-        function toggleTask(taskId) {
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                task.completed = !task.completed;
-                renderTasks();
-            }
-        }
-
-        function deleteTask(taskId) {
-            tasks = tasks.filter(t => t.id !== taskId);
-            renderTasks();
         }
 
         function updateCalendar() {
@@ -633,25 +665,6 @@
                 alert(`Tasks for ${date.toLocaleDateString()}:\n${taskList}`);
             }
         }
-
-        // 頁面加載時從本地存儲讀取任務
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTasks = localStorage.getItem('tasks');
-            if (savedTasks) {
-                tasks = JSON.parse(savedTasks);
-                tasks.forEach(task => {
-                    if (task.datetime) {
-                        scheduleLocalNotification(task);
-                    }
-                });
-                renderTasks();
-            }
-            
-            // 請求通知權限
-            if ('Notification' in window) {
-                Notification.requestPermission();
-            }
-        });
     </script>
 </body>
 </html>
