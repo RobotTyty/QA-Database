@@ -313,7 +313,7 @@
 </head>
 <body>
     <div style="position: fixed; top: 10px; left: 10px; background: #ff9ecd; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000;">
-        v1.0.0
+        v1.0.1
     </div>
     <div class="main-container">
         <div class="chat-container">
@@ -690,21 +690,31 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用 webcal 協議
-                    const calendarUrl = `webcal://p30-calendarws.icloud.com/ca/subscribe/1/${task.id}@christysworld.com?v=2&t=${encodeURIComponent(task.text)}&s=${formatDateForCalendar(taskDate)}&e=${formatDateForCalendar(endDate)}&a=FREQ=ONCE;INTERVAL=1&d=${encodeURIComponent(task.text)}`;
-
-                    // 使用 window.open 打開日曆
-                    window.open(calendarUrl, '_blank');
+                    // 使用 iOS 日曆格式
+                    const calendarUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(`BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatDateForCalendar(taskDate)}
+DTEND:${formatDateForCalendar(endDate)}
+SUMMARY:${task.text}
+DESCRIPTION:${task.text}
+BEGIN:VALARM
+TRIGGER:PT0M
+ACTION:DISPLAY
+DESCRIPTION:${task.text}
+END:VALARM
+END:VEVENT
+END:VCALENDAR`)}`;
                     
-                    // 顯示提示
+                    // 提示用戶添加到日曆
                     const addToCalendarPrompt = document.createElement('div');
                     addToCalendarPrompt.className = 'calendar-prompt';
                     addToCalendarPrompt.innerHTML = `
                         <div class="prompt-content">
-                            <h3>Add to Calendar</h3>
-                            <p>If the calendar doesn't open automatically, please click the button below:</p>
+                            <h3>Add to Calendar?</h3>
+                            <p>For reliable reminders on iOS, add this task to your calendar.</p>
                             <div class="prompt-buttons">
-                                <a href="${calendarUrl}" class="add-button">Open Calendar</a>
+                                <a href="${calendarUrl}" class="add-button" download="${task.text}.ics">Add to Calendar</a>
                                 <button class="cancel-button">Cancel</button>
                             </div>
                         </div>
@@ -742,7 +752,7 @@
 
         // 修改格式化日期函數
         function formatDateForCalendar(date) {
-            return date.toISOString().replace(/[-:.]/g, '').split('.')[0] + 'Z';
+            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         }
 
         // 添加樣式到 head
