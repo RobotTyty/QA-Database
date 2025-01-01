@@ -637,68 +637,69 @@
         };
 
         function scheduleLocalNotification(task) {
-            // 保存到 IndexedDB
-            saveTaskToIndexedDB(task);
-
-            // 註冊後台同步
-            if ('serviceWorker' in navigator && 'SyncManager' in window) {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.sync.register('check-tasks');
-                });
-            }
-
-            // 請求通知權限
-            if ('Notification' in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        // 設置定時器
-                        const notificationTime = new Date(task.datetime).getTime();
-                        const now = new Date().getTime();
+            const notificationTime = new Date(task.datetime).getTime();
+            const now = new Date().getTime();
+            
+            if (notificationTime > now) {
+                const timeUntilNotification = notificationTime - now;
+                
+                // 檢查是否是 iOS Safari
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                
+                if (isIOS) {
+                    // iOS Safari 的處理方式
+                    setTimeout(() => {
+                        // 顯示自定義提醒
+                        showCustomNotification(task.text);
                         
-                        if (notificationTime > now) {
-                            navigator.serviceWorker.ready.then(registration => {
-                                registration.showNotification('Task Reminder', {
-                                    body: task.text,
-                                    icon: 'icon-192.png',
-                                    badge: 'icon-192.png',
-                                    vibrate: [200, 100, 200],
-                                    tag: 'task-reminder',
-                                    renotify: true,
-                                    data: task
-                                });
-                            });
+                        // 播放提示音
+                        playNotificationSound();
+                        
+                        // 如果支持震動
+                        if ('vibrate' in navigator) {
+                            navigator.vibrate([200, 100, 200]);
                         }
+                        
+                        // 嘗試發送本地通知（iOS 可能不支持）
+                        try {
+                            new Notification('Task Reminder', {
+                                body: task.text
+                            });
+                        } catch (e) {
+                            console.log('Native notification failed, using custom notification');
+                        }
+                    }, timeUntilNotification);
+                } else {
+                    // 其他瀏覽器的處理方式
+                    if ('serviceWorker' in navigator && 'Notification' in window) {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === 'granted') {
+                                navigator.serviceWorker.ready.then(registration => {
+                                    registration.showNotification('Task Reminder', {
+                                        body: task.text,
+                                        icon: 'icon-192.png',
+                                        badge: 'icon-192.png',
+                                        vibrate: [200, 100, 200],
+                                        tag: 'task-reminder',
+                                        renotify: true,
+                                        data: task
+                                    });
+                                });
+                            }
+                        });
                     }
-                });
+                }
+                
+                // 保存到本地存儲以備用
+                const scheduledTasks = JSON.parse(localStorage.getItem('scheduledTasks') || '[]');
+                scheduledTasks.push(task);
+                localStorage.setItem('scheduledTasks', JSON.stringify(scheduledTasks));
             }
         }
 
-        // 保存任務到 IndexedDB
-        function saveTaskToIndexedDB(task) {
-            const request = indexedDB.open('TasksDB', 1);
-
-            request.onerror = (event) => {
-                console.error('Database error:', event.target.error);
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('tasks')) {
-                    db.createObjectStore('tasks', { keyPath: 'id' });
-                }
-            };
-
-            request.onsuccess = (event) => {
-                const db = event.target.result;
-                const transaction = db.transaction(['tasks'], 'readwrite');
-                const store = transaction.objectStore('tasks');
-                store.put(task);
-            };
-        }
-
-        // 添加自定義提醒彈窗
+        // 改進自定義通知顯示
         function showCustomNotification(text) {
-            // 創建提醒元素
+            // 創建通知元素
             const notification = document.createElement('div');
             notification.className = 'custom-notification';
             notification.innerHTML = `
@@ -709,80 +710,71 @@
                 </div>
             `;
 
-            // 添加樣式
-            const style = document.createElement('style');
-            style.textContent = `
-                .custom-notification {
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #ff9ecd;
-                    color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    z-index: 1000;
-                    animation: slideIn 0.3s ease-out;
-                    max-width: 300px;
-                }
-
-                .notification-content {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-
-                .notification-title {
-                    font-weight: bold;
-                    font-size: 16px;
-                }
-
-                .notification-body {
-                    font-size: 14px;
-                }
-
-                .notification-close {
-                    background: white;
-                    color: #ff9ecd;
-                    border: none;
-                    padding: 5px 10px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    margin-top: 8px;
-                    align-self: flex-end;
-                }
-
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
+            // 添加 iOS 特定樣式
+            notification.style.cssText = `
+                position: fixed;
+                top: env(safe-area-inset-top, 20px);
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(255, 158, 205, 0.95);
+                color: white;
+                padding: 15px;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                width: 90%;
+                max-width: 400px;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
             `;
 
-            document.head.appendChild(style);
             document.body.appendChild(notification);
 
-            // 添加關閉按鈕事件
-            const closeButton = notification.querySelector('.notification-close');
-            closeButton.addEventListener('click', () => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            });
+            // 添加聲音和震動
+            playNotificationSound();
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200]);
+            }
 
             // 自動關閉
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(-50%) translateY(-20px)';
+                notification.style.transition = 'all 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
             }, 5000);
+
+            // 點擊關閉按鈕
+            const closeButton = notification.querySelector('.notification-close');
+            closeButton.addEventListener('click', () => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(-50%) translateY(-20px)';
+                notification.style.transition = 'all 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            });
         }
+
+        // 定期檢查任務
+        function checkScheduledTasks() {
+            const now = new Date().getTime();
+            const scheduledTasks = JSON.parse(localStorage.getItem('scheduledTasks') || '[]');
+            
+            scheduledTasks.forEach((task, index) => {
+                const taskTime = new Date(task.datetime).getTime();
+                if (taskTime <= now) {
+                    showCustomNotification(task.text);
+                    scheduledTasks.splice(index, 1);
+                }
+            });
+            
+            localStorage.setItem('scheduledTasks', JSON.stringify(scheduledTasks));
+        }
+
+        // 每分鐘檢查一次任務
+        setInterval(checkScheduledTasks, 60000);
+
+        // 頁面加載時也檢查一次
+        document.addEventListener('DOMContentLoaded', checkScheduledTasks);
 
         // 添加提示音函數
         function playNotificationSound() {
