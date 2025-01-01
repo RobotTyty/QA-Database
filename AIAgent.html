@@ -690,28 +690,47 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用 data URI 格式直接打開日曆
-                    const calendarUrl = `data:text/calendar;charset=utf-8,BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Christy's World//Task Reminder//EN
-CALSCALE:GREGORIAN
-BEGIN:VEVENT
-UID:${task.id}@christysworld.com
-DTSTAMP:${formatDateForCalendar(new Date())}
-DTSTART:${formatDateForCalendar(taskDate)}
-DTEND:${formatDateForCalendar(endDate)}
-SUMMARY:${task.text}
-DESCRIPTION:${task.text}
-BEGIN:VALARM
-TRIGGER:PT0M
-ACTION:DISPLAY
-DESCRIPTION:${task.text}
-END:VALARM
-END:VEVENT
-END:VCALENDAR`;
+                    // 使用 webcal 協議
+                    const calendarUrl = `webcal://p30-calendarws.icloud.com/ca/subscribe/1/${task.id}@christysworld.com?v=2&t=${encodeURIComponent(task.text)}&s=${formatDateForCalendar(taskDate)}&e=${formatDateForCalendar(endDate)}&a=FREQ=ONCE;INTERVAL=1&d=${encodeURIComponent(task.text)}`;
 
-                    // 直接打開日曆
-                    window.location.href = calendarUrl;
+                    // 使用 window.open 打開日曆
+                    window.open(calendarUrl, '_blank');
+                    
+                    // 顯示提示
+                    const addToCalendarPrompt = document.createElement('div');
+                    addToCalendarPrompt.className = 'calendar-prompt';
+                    addToCalendarPrompt.innerHTML = `
+                        <div class="prompt-content">
+                            <h3>Add to Calendar</h3>
+                            <p>If the calendar doesn't open automatically, please click the button below:</p>
+                            <div class="prompt-buttons">
+                                <a href="${calendarUrl}" class="add-button">Open Calendar</a>
+                                <button class="cancel-button">Cancel</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 添加樣式
+                    addToCalendarPrompt.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0,0,0,0.5);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 1000;
+                    `;
+                    
+                    document.body.appendChild(addToCalendarPrompt);
+                    
+                    // 處理按鈕點擊
+                    const cancelButton = addToCalendarPrompt.querySelector('.cancel-button');
+                    cancelButton.addEventListener('click', () => {
+                        addToCalendarPrompt.remove();
+                    });
                 }
                 
                 // 保存到本地存儲以備用
