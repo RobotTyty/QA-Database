@@ -687,57 +687,44 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用 iOS 日曆格式
+                    // 使用修改後的 iOS 日曆格式
                     const calendarUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(`BEGIN:VCALENDAR
 VERSION:2.0
+PRODID:-//Christy's World//Task Reminder//EN
+CALSCALE:GREGORIAN
 BEGIN:VEVENT
+UID:${task.id}@christysworld.com
+DTSTAMP:${formatDateForCalendar(new Date())}
 DTSTART:${formatDateForCalendar(taskDate)}
 DTEND:${formatDateForCalendar(endDate)}
 SUMMARY:${task.text}
 DESCRIPTION:${task.text}
 BEGIN:VALARM
-TRIGGER:-PT15M
+TRIGGER:PT0M
 ACTION:DISPLAY
-DESCRIPTION:Reminder
+DESCRIPTION:${task.text}
 END:VALARM
 END:VEVENT
 END:VCALENDAR`)}`;
                     
-                    // 提示用戶添加到日曆
-                    const addToCalendarPrompt = document.createElement('div');
-                    addToCalendarPrompt.className = 'calendar-prompt';
-                    addToCalendarPrompt.innerHTML = `
-                        <div class="prompt-content">
-                            <h3>Add to Calendar?</h3>
-                            <p>For reliable reminders on iOS, add this task to your calendar.</p>
-                            <div class="prompt-buttons">
-                                <a href="${calendarUrl}" class="add-button" download="${task.text}.ics">Add to Calendar</a>
-                                <button class="cancel-button">Cancel</button>
-                            </div>
-                        </div>
-                    `;
+                    // 創建一個隱藏的 iframe 來觸發日曆下載
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
                     
-                    // 添加樣式
-                    addToCalendarPrompt.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background: rgba(0,0,0,0.5);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        z-index: 1000;
-                    `;
+                    // 創建一個臨時鏈接並點擊
+                    const link = document.createElement('a');
+                    link.href = calendarUrl;
+                    link.download = `task_${task.id}.ics`;
+                    link.click();
                     
-                    document.body.appendChild(addToCalendarPrompt);
+                    // 清理 iframe
+                    setTimeout(() => {
+                        document.body.removeChild(iframe);
+                    }, 1000);
                     
-                    // 處理按鈕點擊
-                    const cancelButton = addToCalendarPrompt.querySelector('.cancel-button');
-                    cancelButton.addEventListener('click', () => {
-                        addToCalendarPrompt.remove();
-                    });
+                    // 顯示提示
+                    alert('Please open the downloaded calendar file to add the event to your calendar.');
                 }
                 
                 // 保存到本地存儲以備用
@@ -749,7 +736,7 @@ END:VCALENDAR`)}`;
 
         // 修改格式化日期函數
         function formatDateForCalendar(date) {
-            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            return date.toISOString().replace(/[-:.]/g, '').split('.')[0] + 'Z';
         }
 
         // 添加樣式到 head
