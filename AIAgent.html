@@ -596,30 +596,100 @@
             if (notificationTime > now) {
                 const timeUntilNotification = notificationTime - now;
                 
-                // 請求通知權限
-                if (Notification.permission !== 'granted') {
-                    Notification.requestPermission();
+                // 檢查是否支持通知
+                if (!('Notification' in window)) {
+                    alert('This browser does not support notifications');
+                    return;
                 }
-                
-                setTimeout(() => {
-                    // 發送通知
-                    if (Notification.permission === 'granted') {
-                        new Notification('Task Reminder', {
-                            body: task.text,
-                            icon: 'https://example.com/icon.png'
-                        });
+
+                // 請求通知權限
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        // 設置定時器
+                        setTimeout(() => {
+                            try {
+                                // 在移動設備上使用 ServiceWorker 發送通知
+                                if ('serviceWorker' in navigator) {
+                                    navigator.serviceWorker.register('service-worker.js')
+                                        .then(registration => {
+                                            registration.showNotification('Task Reminder', {
+                                                body: task.text,
+                                                icon: '/icon.png',  // 添加一個圖標
+                                                badge: '/badge.png', // 為通知添加一個小圖標
+                                                vibrate: [200, 100, 200], // 震動模式
+                                                tag: 'task-reminder',
+                                                renotify: true,
+                                                actions: [
+                                                    {
+                                                        action: 'view',
+                                                        title: 'View Task'
+                                                    },
+                                                    {
+                                                        action: 'close',
+                                                        title: 'Close'
+                                                    }
+                                                ],
+                                                data: {
+                                                    taskId: task.id,
+                                                    datetime: task.datetime
+                                                }
+                                            });
+                                        })
+                                        .catch(error => {
+                                            // 如果 ServiceWorker 失敗，回退到普通通知
+                                            fallbackNotification(task);
+                                        });
+                                } else {
+                                    // 如果不支持 ServiceWorker，使用普通通知
+                                    fallbackNotification(task);
+                                }
+
+                                // 播放提示音
+                                playNotificationSound();
+                                
+                                // 震動
+                                if ('vibrate' in navigator) {
+                                    navigator.vibrate([200, 100, 200]);
+                                }
+                            } catch (error) {
+                                console.error('Notification error:', error);
+                                alert(`Reminder: ${task.text}`);
+                            }
+                        }, timeUntilNotification);
                     }
-                    
-                    // 播放提示音
-                    const audio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABhgC1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAYbsYxh+AAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAEAAACgAAAAIAAANIAAAARMQU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
-                    audio.play();
-                    
-                    // 如果設備支持震動
-                    if ('vibrate' in navigator) {
-                        navigator.vibrate([200, 100, 200]);
-                    }
-                }, timeUntilNotification);
+                });
             }
+        }
+
+        // 添加回退通知函數
+        function fallbackNotification(task) {
+            new Notification('Task Reminder', {
+                body: task.text,
+                icon: '/icon.png'
+            });
+        }
+
+        // 添加提示音函數
+        function playNotificationSound() {
+            try {
+                const audio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABhgC1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAYbsYxh+AAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAEAAACgAAAAIAAANIAAAARMQU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
+                audio.play().catch(e => console.log('Audio play failed:', e));
+            } catch (e) {
+                console.log('Audio creation failed:', e);
+            }
+        }
+
+        // 在頁面加載時初始化 ServiceWorker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered');
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
         }
 
         function updateCalendar() {
@@ -664,6 +734,31 @@
                 ).join('\n');
                 alert(`Tasks for ${date.toLocaleDateString()}:\n${taskList}`);
             }
+        }
+
+        // 添加測試按鈕
+        <button onclick="testNotification()">Test Notification</button>
+
+        function testNotification() {
+            if (!('Notification' in window)) {
+                alert('Notifications not supported');
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    try {
+                        new Notification('Test Notification', {
+                            body: 'This is a test notification',
+                            icon: '/icon.png'
+                        });
+                    } catch (e) {
+                        alert('Notification failed: ' + e.message);
+                    }
+                } else {
+                    alert('Notification permission: ' + permission);
+                }
+            });
         }
     </script>
 </body>
