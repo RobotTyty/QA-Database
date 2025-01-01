@@ -605,43 +605,116 @@
             const now = new Date().getTime();
             
             if (notificationTime > now) {
+                // 存儲任務到本地存儲
+                saveTaskToLocalStorage(task);
+                
+                // 檢查是否支援服務工作線程
+                if ('serviceWorker' in navigator) {
+                    registerServiceWorker();
+                }
+                
+                // 使用多種通知方式
+                const timeUntilNotification = notificationTime - now;
                 setTimeout(() => {
                     showNotification(task.text);
-                }, notificationTime - now);
+                    // 嘗試震動提醒（如果設備支援）
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate([200, 100, 200]);
+                    }
+                    // 嘗試播放提示音
+                    playNotificationSound();
+                }, timeUntilNotification);
             }
         }
 
         function showNotification(text) {
-            if (Notification.permission !== 'granted') {
-                Notification.requestPermission();
-            }
+            // 檢查是否支援通知 API
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        // 創建通知
+                        const notification = new Notification('Task Reminder', {
+                            body: text,
+                            icon: '/path/to/icon.png', // 添加你的圖標
+                            badge: '/path/to/badge.png', // 為手機添加小圖標
+                            vibrate: [200, 100, 200],
+                            tag: 'task-reminder',
+                            renotify: true
+                        });
 
-            if (Notification.permission === 'granted') {
-                new Notification('Task Reminder', {
-                    body: text,
-                    icon: 'https://example.com/icon.png'
+                        // 點擊通知時的行為
+                        notification.onclick = function() {
+                            window.focus();
+                            this.close();
+                        };
+                    }
                 });
             }
 
-            const notification = document.createElement('div');
-            notification.className = 'notification';
-            notification.textContent = `Reminder: ${text}`;
-            document.body.appendChild(notification);
+            // 同時在頁面內顯示提醒
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification';
+            notificationElement.textContent = `Reminder: ${text}`;
+            document.body.appendChild(notificationElement);
+
+            // 播放提示音
+            playNotificationSound();
 
             setTimeout(() => {
-                notification.remove();
+                notificationElement.remove();
             }, 5000);
         }
 
-        function initializeNotifications() {
-            tasks.forEach(task => {
-                if (task.datetime) {
+        // 添加提示音功能
+        function playNotificationSound() {
+            const audio = new Audio('data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAADAAAGhgBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVWqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr///////////////////////////////////////////8AAAA5TEFNRTMuOTlyAc0AAAAAAAAAABSAJAOkQgAAgAAABobXqrnWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        // 保存任務到本地存儲
+        function saveTaskToLocalStorage(task) {
+            let tasks = JSON.parse(localStorage.getItem('scheduledTasks') || '[]');
+            tasks.push(task);
+            localStorage.setItem('scheduledTasks', JSON.stringify(tasks));
+        }
+
+        // 註冊服務工作線程
+        async function registerServiceWorker() {
+            try {
+                const registration = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('ServiceWorker registered');
+            } catch (err) {
+                console.log('ServiceWorker registration failed:', err);
+            }
+        }
+
+        // 在頁面加載時檢查並請求必要的權限
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 請求通知權限
+            if ('Notification' in window) {
+                await Notification.requestPermission();
+            }
+            
+            // 檢查是否支援服務工作線程
+            if ('serviceWorker' in navigator) {
+                registerServiceWorker();
+            }
+            
+            // 從本地存儲加載任務
+            loadTasksFromLocalStorage();
+        });
+
+        // 從本地存儲加載任務
+        function loadTasksFromLocalStorage() {
+            const savedTasks = JSON.parse(localStorage.getItem('scheduledTasks') || '[]');
+            savedTasks.forEach(task => {
+                const notificationTime = new Date(task.datetime).getTime();
+                const now = new Date().getTime();
+                if (notificationTime > now) {
                     scheduleNotification(task);
                 }
             });
         }
-
-        initializeNotifications();
     </script>
 </body>
 </html>
