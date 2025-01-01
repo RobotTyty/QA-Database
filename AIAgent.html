@@ -687,44 +687,14 @@
                     const taskDate = new Date(task.datetime);
                     const endDate = new Date(taskDate.getTime() + 3600000); // 1小時後
                     
-                    // 使用修改後的 iOS 日曆格式
-                    const calendarUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(`BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Christy's World//Task Reminder//EN
-CALSCALE:GREGORIAN
-BEGIN:VEVENT
-UID:${task.id}@christysworld.com
-DTSTAMP:${formatDateForCalendar(new Date())}
-DTSTART:${formatDateForCalendar(taskDate)}
-DTEND:${formatDateForCalendar(endDate)}
-SUMMARY:${task.text}
-DESCRIPTION:${task.text}
-BEGIN:VALARM
-TRIGGER:PT0M
-ACTION:DISPLAY
-DESCRIPTION:${task.text}
-END:VALARM
-END:VEVENT
-END:VCALENDAR`)}`;
+                    // 使用 webcal 協議
+                    const calendarUrl = `webcal://p66-caldav.icloud.com/published/2/MTAwMDg4NTMyMTEwMDA4OJGi8JmB0L-gVoYpYJkz5vXQYf-EQkghI_GvyfHFU1oTXXwgPYWYNCVZ?text=${encodeURIComponent(task.text)}&dates=${formatDateForCalendar(taskDate)}/${formatDateForCalendar(endDate)}&details=${encodeURIComponent(task.text)}`;
                     
-                    // 創建一個隱藏的 iframe 來觸發日曆下載
-                    const iframe = document.createElement('iframe');
-                    iframe.style.display = 'none';
-                    document.body.appendChild(iframe);
+                    // 直接打開日曆
+                    window.location.href = calendarUrl;
                     
-                    // 創建一個臨時鏈接並點擊
-                    const link = document.createElement('a');
-                    link.href = calendarUrl;
-                    link.download = `task_${task.id}.ics`;
-                    link.click();
-                    
-                    // 清理 iframe
-                    setTimeout(() => {
-                        document.body.removeChild(iframe);
-                    }, 1000);
-                    
-                    // 顯示提示
-                    alert('Please open the downloaded calendar file to add the event to your calendar.');
+                    // 或者使用新窗口打開
+                    // window.open(calendarUrl, '_blank');
                 }
                 
                 // 保存到本地存儲以備用
@@ -736,7 +706,7 @@ END:VCALENDAR`)}`;
 
         // 修改格式化日期函數
         function formatDateForCalendar(date) {
-            return date.toISOString().replace(/[-:.]/g, '').split('.')[0] + 'Z';
+            return date.toISOString().replace(/[-:.]/g, '').split('.')[0];
         }
 
         // 添加樣式到 head
