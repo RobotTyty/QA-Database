@@ -342,11 +342,16 @@
                     <input type="datetime-local" id="task-datetime">
                     <button id="add-task-btn">Add</button>
                 </div>
+                <button id="test-notification-btn" style="margin-top: 10px; background: #ff9ecd; color: white; border: none; border-radius: 5px; padding: 5px 10px;">
+                    Test Notification
+                </button>
             </div>
         </div>
     </div>
 
     <script>
+        let tasks = [];  // 確保 tasks 數組在全局範圍內定義
+
         const chatMessages = document.getElementById('chat-messages');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
@@ -385,11 +390,14 @@
         const prevMonthBtn = document.getElementById('prev-month');
         const nextMonthBtn = document.getElementById('next-month');
 
-        // 初始化年份選擇器
+        // 修改初始化年份選擇器的函數
         function initYearSelect() {
-            const currentYear = currentDate.getFullYear();
-            const startYear = currentYear - 5;  // 從當前年份往前5年
-            const endYear = currentYear + 15;   // 從當前年份往後15年，這樣可以到2040年左右
+            const yearSelect = document.getElementById('year-select');
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 5;
+            const endYear = currentYear + 15;
+            
+            yearSelect.innerHTML = ''; // 清空現有選項
             
             for (let year = startYear; year <= endYear; year++) {
                 const option = document.createElement('option');
@@ -397,7 +405,16 @@
                 option.textContent = year;
                 yearSelect.appendChild(option);
             }
+            
+            // 設置當前年份為默認值
             yearSelect.value = currentYear;
+            
+            console.log('Year select initialized:', {
+                startYear,
+                endYear,
+                currentYear,
+                options: yearSelect.options.length
+            });
         }
 
         // 生成日曆
@@ -458,29 +475,50 @@
         yearSelect.addEventListener('change', generateCalendar);
         
         prevMonthBtn.addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            monthSelect.value = currentDate.getMonth();
-            yearSelect.value = currentDate.getFullYear();
+            let year = parseInt(yearSelect.value);
+            let month = parseInt(monthSelect.value);
+            
+            if (month === 0) {
+                month = 11;
+                year--;
+                yearSelect.value = year;
+            } else {
+                month--;
+            }
+            
+            monthSelect.value = month;
             generateCalendar();
         });
         
         nextMonthBtn.addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            monthSelect.value = currentDate.getMonth();
-            yearSelect.value = currentDate.getFullYear();
+            let year = parseInt(yearSelect.value);
+            let month = parseInt(monthSelect.value);
+            
+            if (month === 11) {
+                month = 0;
+                year++;
+                yearSelect.value = year;
+            } else {
+                month++;
+            }
+            
+            monthSelect.value = month;
             generateCalendar();
         });
 
-        // 初始化
-        initYearSelect();
-        monthSelect.value = currentDate.getMonth();
-        generateCalendar();
-
-        // 首先確保 tasks 數組被正確初始化
-        let tasks = [];
-
-        // 在頁面加載時初始化任務
+        // 確保在頁面加載時調用初始化函數
         document.addEventListener('DOMContentLoaded', () => {
+            // 初始化年份選擇器
+            initYearSelect();
+            
+            // 設置當前月份
+            const currentDate = new Date();
+            monthSelect.value = currentDate.getMonth();
+            yearSelect.value = currentDate.getFullYear();
+            
+            // 生成日曆
+            generateCalendar();
+            
             // 從本地存儲加載任務
             const savedTasks = localStorage.getItem('tasks');
             if (savedTasks) {
@@ -537,6 +575,12 @@
             // 請求通知權限
             if ('Notification' in window) {
                 Notification.requestPermission();
+            }
+
+            // 添加測試按鈕事件監聽
+            const testBtn = document.getElementById('test-notification-btn');
+            if (testBtn) {
+                testBtn.addEventListener('click', testNotification);
             }
         });
 
@@ -614,9 +658,7 @@
                                         .then(registration => {
                                             registration.showNotification('Task Reminder', {
                                                 body: task.text,
-                                                icon: '/icon.png',  // 添加一個圖標
-                                                badge: '/badge.png', // 為通知添加一個小圖標
-                                                vibrate: [200, 100, 200], // 震動模式
+                                                vibrate: [200, 100, 200],
                                                 tag: 'task-reminder',
                                                 renotify: true,
                                                 actions: [
@@ -661,11 +703,10 @@
             }
         }
 
-        // 添加回退通知函數
+        // 修改回退通知函數
         function fallbackNotification(task) {
             new Notification('Task Reminder', {
-                body: task.text,
-                icon: '/icon.png'
+                body: task.text
             });
         }
 
@@ -736,9 +777,7 @@
             }
         }
 
-        // 添加測試按鈕
-        <button onclick="testNotification()">Test Notification</button>
-
+        // 修改測試通知函數
         function testNotification() {
             if (!('Notification' in window)) {
                 alert('Notifications not supported');
@@ -749,8 +788,7 @@
                 if (permission === 'granted') {
                     try {
                         new Notification('Test Notification', {
-                            body: 'This is a test notification',
-                            icon: '/icon.png'
+                            body: 'This is a test notification'
                         });
                     } catch (e) {
                         alert('Notification failed: ' + e.message);
